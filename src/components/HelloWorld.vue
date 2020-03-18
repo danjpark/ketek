@@ -12,14 +12,17 @@
 export default {
   name: 'HelloWorld',
   props: {
-    message: String
+    message: {
+        default: 'Dan Park is King',
+        type: String
+    }
   },
   computed :{
-      reversedMessage: function () {
-      // `this` points to the vm instance
-      return this.message.split('').reverse().join('')
+      reversedMessage () {
+        // return this.message.split('').reverse().join('');
+        return this.message.split('').join('').split(' ').reverse().join(' ')
     }
-  }
+  },
 }
 </script>
 
