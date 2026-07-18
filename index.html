@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ketek Writer</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="page">
+    <header class="page-header">
+      <h1>Ketek Writer</h1>
+      <p class="subtitle">
+        Write the first half. Watch the mirror follow you, word for word, in grey.
+        Edit any mirrored word to fix its tense, plurality, or punctuation &mdash;
+        it stays locked to that word as you keep writing.
+      </p>
+    </header>
+
+    <section class="toolbar">
+      <label class="example-picker">
+        <span>Load an example</span>
+        <select id="example-select">
+          <option value="">&mdash; choose &mdash;</option>
+          <option value="storm">Above silence, the illuminating storms&hellip;</option>
+          <option value="wind">Alight, winds approach deadly&hellip;</option>
+        </select>
+      </label>
+      <button id="clear-btn" type="button">Clear draft</button>
+    </section>
+
+    <section class="editor">
+      <div class="field">
+        <label for="forward-input">Forward</label>
+        <textarea id="forward-input" rows="3" placeholder="Above silence, the illuminating storms" spellcheck="false"></textarea>
+      </div>
+
+      <div class="field pivot-field">
+        <label for="pivot-input">Pivot / center <span class="optional">(optional)</span></label>
+        <input id="pivot-input" type="text" placeholder="dying">
+      </div>
+
+      <div class="field">
+        <div class="mirror-label-row">
+          <label>Mirror <span class="optional">(auto-generated &mdash; click a word to edit it)</span></label>
+        </div>
+        <div id="mirror-output" class="mirror-output" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <section class="stats" id="stats"></section>
+
+    <section class="preview-section">
+      <h2>Preview</h2>
+      <p id="preview" class="preview"></p>
+    </section>
+
+    <section class="reference">
+      <h2>For inspiration</h2>
+      <p class="reference-item">
+        &ldquo;Trusted Words, Known Words, Renounce Once. Renounce Words Known. Words&hellip;Trusted&hellip; Once.&rdquo;
+        <span class="reference-note">a looser, five-section ketek &mdash; structural support for this style is coming in a later phase</span>
+      </p>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
