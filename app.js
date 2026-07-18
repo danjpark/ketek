@@ -4,6 +4,7 @@
   var STORAGE_KEY = "ketek-draft-v2";
   var LEGACY_KEY = "ketek-draft-v1";
   var LIBRARY_KEY = "ketek-library-v1";
+  var SETTINGS_KEY = "ketek-settings-v1";
   var UNDO_LIMIT = 40;
   var COMMIT_DEBOUNCE_MS = 500;
 
@@ -34,6 +35,7 @@
 
   var state = defaultState();
   var library = [];
+  var settings = { emDash: false };
   var history = [];
   var historyIndex = -1;
   var historyTimer = null;
@@ -68,6 +70,10 @@
   var saveDraftCancel = document.getElementById("save-draft-cancel");
   var libraryList = document.getElementById("library-list");
   var libraryEmpty = document.getElementById("library-empty");
+
+  var emDashToggle = document.getElementById("em-dash-toggle");
+  var copyBtn = document.getElementById("copy-btn");
+  var downloadBtn = document.getElementById("download-btn");
 
   // ---------- word tokenizing ----------
   function tokenize(text) {
@@ -188,6 +194,7 @@
         '<button type="button" data-tool="ing" tabindex="-1" title="toggle -ing">ing</button>' +
         '<button type="button" data-tool="s" tabindex="-1" title="toggle plural -s">s</button>' +
         '<button type="button" data-tool="case" tabindex="-1" title="toggle case">Aa</button>' +
+        '<button type="button" data-tool="synonyms" tabindex="-1" title="find similar words">&#8776;</button>' +
         '<button type="button" data-tool="reset" tabindex="-1" title="reset to default">&#8635;</button>';
       unit.appendChild(tools);
 
@@ -242,14 +249,22 @@
     });
   }
 
+  function composeParts(forwardText, pivot, mirrorText) {
+    var parts = [];
+    if (forwardText) parts.push(forwardText);
+    if (pivot) parts.push(settings.emDash ? ("—" + pivot + "—") : pivot);
+    if (mirrorText) parts.push(mirrorText);
+    return parts.join(" ");
+  }
+
   function updatePreviewAndStats() {
-    var parts, n, mirroredN, pivot, total, filledSections = null;
+    var previewText, n, mirroredN, pivot, total, filledSections = null;
 
     if (state.mode === "simple") {
       var words = tokenize(state.simple.forward);
       var mirror = mirrorWordsFor(words, state.simple.overrides);
       pivot = state.simple.pivot.trim();
-      parts = [state.simple.forward.trim(), pivot, mirror.join(" ")].filter(function (p) { return p.length > 0; });
+      previewText = composeParts(state.simple.forward.trim(), pivot, mirror.join(" "));
       n = words.length;
       mirroredN = words.length;
       total = n + mirroredN + (pivot ? 1 : 0);
@@ -268,7 +283,7 @@
         mirrorParts.push(mirrorWordsFor(w2, state.sections.overrides[i2]).join(" "));
       }
       pivot = state.sections.pivot.trim();
-      parts = [fwdParts.join(" "), pivot, mirrorParts.join(" ")].filter(function (p) { return p.length > 0; });
+      previewText = composeParts(fwdParts.join(" "), pivot, mirrorParts.join(" "));
       mirroredN = n;
       total = n + mirroredN + (pivot ? 1 : 0);
       filledSections = [0, 1, 2, 3, 4].filter(function (i) {
@@ -276,7 +291,7 @@
       }).length;
     }
 
-    previewEl.textContent = parts.join(" ") || "Your ketek will appear here.";
+    previewEl.textContent = previewText || "Your ketek will appear here.";
 
     var bits = [n + " word" + (n === 1 ? "" : "s") + " forward", mirroredN + " mirrored"];
     if (pivot) bits.push("1 pivot");
@@ -297,6 +312,7 @@
     renderSectionsMirror();
 
     applyModeVisibility();
+    emDashToggle.checked = settings.emDash;
     updatePreviewAndStats();
     renderLibrary();
   }
@@ -320,6 +336,71 @@
     updatePreviewAndStats();
     saveState();
     commitHistory();
+  }
+
+  function applyMirrorWordUpdate(span, text) {
+    // Avoid reassigning textContent when it's already current — doing so
+    // while the user is actively typing would reset the cursor position.
+    if (span.textContent !== text) span.textContent = text;
+    var k = Number(span.dataset.k);
+    var prefix = span.dataset.prefix;
+    var isDefault = text === span.dataset.default;
+    setOverride(prefix, k, text, span.dataset.default);
+    span.classList.toggle("edited", !isDefault);
+    span.classList.toggle("ghost", isDefault);
+    span.title = isDefault ? "" : "auto: " + span.dataset.default + " (reset available below)";
+    updatePreviewAndStats();
+    saveState();
+  }
+
+  // ---------- synonym lookup (Datamuse) ----------
+  function fetchSynonyms(word) {
+    var clean = word.replace(/[^A-Za-z']/g, "");
+    if (!clean) return Promise.resolve([]);
+    return fetch("https://api.datamuse.com/words?ml=" + encodeURIComponent(clean) + "&max=8")
+      .then(function (res) {
+        if (!res.ok) throw new Error("Datamuse request failed");
+        return res.json();
+      })
+      .then(function (data) {
+        return data.map(function (d) { return d.word; }).filter(Boolean);
+      });
+  }
+
+  function closeSynonymPopovers() {
+    document.querySelectorAll(".synonym-popover").forEach(function (p) { p.remove(); });
+  }
+
+  function showSynonymPopover(unit, span) {
+    closeSynonymPopovers();
+    var pop = document.createElement("div");
+    pop.className = "synonym-popover";
+    pop.textContent = "Looking up “" + span.textContent + "”…";
+    unit.appendChild(pop);
+
+    fetchSynonyms(span.textContent).then(function (words) {
+      if (!pop.isConnected) return;
+      pop.innerHTML = "";
+      if (!words.length) {
+        pop.textContent = "No suggestions found.";
+        return;
+      }
+      words.forEach(function (w) {
+        var chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "synonym-chip";
+        chip.textContent = w;
+        chip.addEventListener("click", function (e) {
+          e.stopPropagation();
+          applyMirrorWordUpdate(span, w);
+          commitHistory();
+          pop.remove();
+        });
+        pop.appendChild(chip);
+      });
+    }).catch(function () {
+      if (pop.isConnected) pop.textContent = "Couldn't reach the word-lookup service.";
+    });
   }
 
   // ---------- history (undo/redo) ----------
@@ -416,6 +497,22 @@
     for (var i = 0; i < 5; i++) if (state.sections.forwards[i].trim()) return true;
     if (state.sections.pivot.trim()) return true;
     return false;
+  }
+
+  // ---------- persistence: settings ----------
+  function saveSettings() {
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (e) {}
+  }
+
+  function loadSettings() {
+    try {
+      var raw = localStorage.getItem(SETTINGS_KEY);
+      if (!raw) return;
+      var parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        settings.emDash = !!parsed.emDash;
+      }
+    } catch (e) { /* corrupt settings — use defaults */ }
   }
 
   // ---------- persistence: saved-drafts library ----------
@@ -558,16 +655,7 @@
   document.addEventListener("input", function (e) {
     var target = e.target;
     if (!target.classList || !target.classList.contains("mirror-word")) return;
-    var k = Number(target.dataset.k);
-    var prefix = target.dataset.prefix;
-    var text = target.textContent;
-    var isDefault = text === target.dataset.default;
-    setOverride(prefix, k, text, target.dataset.default);
-    target.classList.toggle("edited", !isDefault);
-    target.classList.toggle("ghost", isDefault);
-    target.title = isDefault ? "" : "auto: " + target.dataset.default + " (reset available below)";
-    updatePreviewAndStats();
-    saveState();
+    applyMirrorWordUpdate(target, target.textContent);
     scheduleCommit();
   });
 
@@ -596,6 +684,10 @@
   });
 
   document.addEventListener("click", function (e) {
+    if (!e.target.closest || (!e.target.closest(".synonym-popover") && !e.target.closest('[data-tool="synonyms"]'))) {
+      closeSynonymPopovers();
+    }
+
     var btn = e.target.closest ? e.target.closest(".mirror-tools button") : null;
     if (!btn) return;
     var unit = btn.closest(".mirror-unit");
@@ -608,22 +700,18 @@
       return;
     }
 
+    if (tool === "synonyms") {
+      showSynonymPopover(unit, span);
+      return;
+    }
+
     var current = span.textContent;
     var next = current;
     if (tool === "ing") next = toggleIng(current);
     else if (tool === "s") next = toggleS(current);
     else if (tool === "case") next = toggleCase(current);
 
-    span.textContent = next;
-    var k = Number(span.dataset.k);
-    var prefix = span.dataset.prefix;
-    var isDefault = next === span.dataset.default;
-    setOverride(prefix, k, next, span.dataset.default);
-    span.classList.toggle("edited", !isDefault);
-    span.classList.toggle("ghost", isDefault);
-    span.title = isDefault ? "" : "auto: " + span.dataset.default + " (reset available below)";
-    updatePreviewAndStats();
-    saveState();
+    applyMirrorWordUpdate(span, next);
     commitHistory();
     span.focus();
   });
@@ -695,9 +783,42 @@
     if (e.key === "Escape") { saveDraftForm.hidden = true; }
   });
 
+  emDashToggle.addEventListener("change", function () {
+    settings.emDash = emDashToggle.checked;
+    updatePreviewAndStats();
+    saveSettings();
+  });
+
+  copyBtn.addEventListener("click", function () {
+    var text = previewEl.textContent;
+    var original = copyBtn.textContent;
+    function flash(label) {
+      copyBtn.textContent = label;
+      setTimeout(function () { copyBtn.textContent = original; }, 1500);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () { flash("Copied!"); }, function () { flash("Couldn't copy"); });
+    } else {
+      flash("Copy unsupported");
+    }
+  });
+
+  downloadBtn.addEventListener("click", function () {
+    var blob = new Blob([previewEl.textContent], { type: "text/plain" });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement("a");
+    a.href = url;
+    a.download = "ketek.txt";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  });
+
   // ---------- init ----------
   loadState();
   loadLibrary();
+  loadSettings();
   renderAll();
   history = [snapshotState()];
   historyIndex = 0;

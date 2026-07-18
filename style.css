@@ -297,6 +297,44 @@ textarea:focus, input[type="text"]:focus, .mirror-word:focus {
   border-radius: 4px;
 }
 
+.synonym-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  width: max-content;
+  max-width: 220px;
+  padding: 0.5rem;
+  margin-top: 0.3rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  font-family: var(--font-ui);
+  font-size: 0.8rem;
+  font-style: normal;
+  color: var(--ink-soft);
+}
+
+.synonym-chip {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--panel-soft);
+  color: var(--ink);
+  padding: 0.2rem 0.55rem;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.synonym-chip:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .section-label-chip {
   display: inline-block;
   font-family: var(--font-ui);
@@ -324,6 +362,34 @@ textarea:focus, input[type="text"]:focus, .mirror-word:focus {
   letter-spacing: 0.04em;
   color: var(--ink-soft);
   margin: 0 0 0.6rem;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.preview-header h2 {
+  margin: 0;
+}
+
+.preview-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.em-dash-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
 }
 
 .preview {
