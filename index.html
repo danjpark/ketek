@@ -13,26 +13,37 @@
       <p class="subtitle">
         Write the first half. Watch the mirror follow you, word for word, in grey.
         Edit any mirrored word to fix its tense, plurality, or punctuation &mdash;
-        it stays locked to that word as you keep writing.
+        it stays locked to that word as you keep writing. Hover a word to see
+        its mirror partner light up.
       </p>
     </header>
 
     <section class="toolbar">
-      <label class="example-picker">
-        <span>Load an example</span>
-        <select id="example-select">
-          <option value="">&mdash; choose &mdash;</option>
-          <option value="storm">Above silence, the illuminating storms&hellip;</option>
-          <option value="wind">Alight, winds approach deadly&hellip;</option>
-        </select>
-      </label>
-      <button id="clear-btn" type="button">Clear draft</button>
+      <div class="mode-toggle" role="radiogroup" aria-label="Structure">
+        <button type="button" class="mode-btn active" data-mode="simple">Simple</button>
+        <button type="button" class="mode-btn" data-mode="sections">Five-section</button>
+      </div>
+      <div class="toolbar-right">
+        <button id="undo-btn" type="button" title="Undo (or click into a field and use Ctrl+Z)" disabled>&#8630; Undo</button>
+        <button id="redo-btn" type="button" title="Redo" disabled>&#8631; Redo</button>
+        <label class="example-picker">
+          <span>Example</span>
+          <select id="example-select">
+            <option value="">&mdash; choose &mdash;</option>
+            <option value="storm">Above silence, the illuminating storms&hellip;</option>
+            <option value="wind">Alight, winds approach deadly&hellip;</option>
+          </select>
+        </label>
+        <button id="clear-btn" type="button">Clear draft</button>
+      </div>
     </section>
 
-    <section class="editor">
+    <!-- SIMPLE MODE -->
+    <section class="editor" id="simple-editor">
       <div class="field">
         <label for="forward-input">Forward</label>
         <textarea id="forward-input" rows="3" placeholder="Above silence, the illuminating storms" spellcheck="false"></textarea>
+        <div class="word-map" id="forward-map" data-prefix="s"></div>
       </div>
 
       <div class="field pivot-field">
@@ -44,7 +55,54 @@
         <div class="mirror-label-row">
           <label>Mirror <span class="optional">(auto-generated &mdash; click a word to edit it)</span></label>
         </div>
-        <div id="mirror-output" class="mirror-output" aria-live="polite"></div>
+        <div id="mirror-output" class="mirror-output" data-prefix="s" aria-live="polite"></div>
+      </div>
+    </section>
+
+    <!-- FIVE-SECTION MODE -->
+    <section class="editor sections-editor" id="sections-editor" hidden>
+      <p class="sections-intro">
+        The traditional ketek form: five sections, each meant to read as its
+        own complete thought. This is a simplified, single-pivot take on
+        that structure &mdash; not a strict reproduction of Vorin poetics.
+      </p>
+
+      <div class="section-block" data-section="0">
+        <label>Section 1 <span class="section-status" data-section-status="0"></span></label>
+        <textarea class="section-input" data-section-input="0" rows="2" spellcheck="false"></textarea>
+        <div class="word-map" data-section-map="0" data-prefix="sec0"></div>
+      </div>
+      <div class="section-block" data-section="1">
+        <label>Section 2 <span class="section-status" data-section-status="1"></span></label>
+        <textarea class="section-input" data-section-input="1" rows="2" spellcheck="false"></textarea>
+        <div class="word-map" data-section-map="1" data-prefix="sec1"></div>
+      </div>
+      <div class="section-block" data-section="2">
+        <label>Section 3 <span class="section-status" data-section-status="2"></span></label>
+        <textarea class="section-input" data-section-input="2" rows="2" spellcheck="false"></textarea>
+        <div class="word-map" data-section-map="2" data-prefix="sec2"></div>
+      </div>
+      <div class="section-block" data-section="3">
+        <label>Section 4 <span class="section-status" data-section-status="3"></span></label>
+        <textarea class="section-input" data-section-input="3" rows="2" spellcheck="false"></textarea>
+        <div class="word-map" data-section-map="3" data-prefix="sec3"></div>
+      </div>
+      <div class="section-block" data-section="4">
+        <label>Section 5 <span class="section-status" data-section-status="4"></span></label>
+        <textarea class="section-input" data-section-input="4" rows="2" spellcheck="false"></textarea>
+        <div class="word-map" data-section-map="4" data-prefix="sec4"></div>
+      </div>
+
+      <div class="field pivot-field">
+        <label for="sections-pivot-input">Pivot / center <span class="optional">(optional)</span></label>
+        <input id="sections-pivot-input" type="text" placeholder="dying">
+      </div>
+
+      <div class="field">
+        <div class="mirror-label-row">
+          <label>Mirror <span class="optional">(sections read back S5 &rarr; S1)</span></label>
+        </div>
+        <div id="sections-mirror-output" class="mirror-output" aria-live="polite"></div>
       </div>
     </section>
 
@@ -55,11 +113,25 @@
       <p id="preview" class="preview"></p>
     </section>
 
+    <section class="library">
+      <div class="library-header">
+        <h2>My Keteks</h2>
+        <button id="save-draft-btn" type="button">Save current as&hellip;</button>
+      </div>
+      <div id="save-draft-form" class="save-draft-form" hidden>
+        <input id="save-draft-title" type="text" placeholder="Title this draft">
+        <button id="save-draft-confirm" type="button">Save</button>
+        <button id="save-draft-cancel" type="button">Cancel</button>
+      </div>
+      <ul id="library-list" class="library-list"></ul>
+      <p id="library-empty" class="library-empty">Nothing saved yet.</p>
+    </section>
+
     <section class="reference">
       <h2>For inspiration</h2>
       <p class="reference-item">
         &ldquo;Trusted Words, Known Words, Renounce Once. Renounce Words Known. Words&hellip;Trusted&hellip; Once.&rdquo;
-        <span class="reference-note">a looser, five-section ketek &mdash; structural support for this style is coming in a later phase</span>
+        <span class="reference-note">a looser, five-section ketek in the traditional style</span>
       </p>
     </section>
   </main>
