@@ -222,6 +222,7 @@ textarea:focus, input[type="text"]:focus, .mirror-word:focus {
 }
 
 .word-map .map-chip.paired {
+  background: var(--panel-soft);
   background: color-mix(in srgb, var(--accent) 20%, transparent);
   color: var(--ink);
 }
@@ -265,14 +266,17 @@ textarea:focus, input[type="text"]:focus, .mirror-word:focus {
 .mirror-word.edited {
   color: var(--edited);
   font-style: normal;
+  background: var(--panel-soft);
   background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .mirror-word.paired {
+  background: var(--panel-soft);
   background: color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 .mirror-word:focus {
+  background: var(--panel-soft);
   background: color-mix(in srgb, var(--accent) 18%, transparent);
 }
 

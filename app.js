@@ -7,6 +7,8 @@
   var SETTINGS_KEY = "ketek-settings-v1";
   var UNDO_LIMIT = 40;
   var COMMIT_DEBOUNCE_MS = 500;
+  var SECTION_COUNT = 5;
+  var SECTION_INDICES = [0, 1, 2, 3, 4];
 
   var EXAMPLES = {
     storm: {
@@ -21,15 +23,19 @@
     }
   };
 
+  function emptySectionsState() {
+    return {
+      forwards: SECTION_INDICES.map(function () { return ""; }),
+      pivot: "",
+      overrides: SECTION_INDICES.map(function () { return {}; })
+    };
+  }
+
   function defaultState() {
     return {
       mode: "simple",
       simple: { forward: "", pivot: "", overrides: {} },
-      sections: {
-        forwards: ["", "", "", "", ""],
-        pivot: "",
-        overrides: [{}, {}, {}, {}, {}]
-      }
+      sections: emptySectionsState()
     };
   }
 
@@ -46,8 +52,14 @@
   var forwardMap = document.getElementById("forward-map");
   var mirrorOutput = document.getElementById("mirror-output");
 
-  var sectionInputs = [0, 1, 2, 3, 4].map(function (i) {
+  var sectionInputs = SECTION_INDICES.map(function (i) {
     return document.querySelector('[data-section-input="' + i + '"]');
+  });
+  var sectionMapEls = SECTION_INDICES.map(function (i) {
+    return document.querySelector('[data-section-map="' + i + '"]');
+  });
+  var sectionStatusEls = SECTION_INDICES.map(function (i) {
+    return document.querySelector('[data-section-status="' + i + '"]');
   });
   var sectionsPivotInput = document.getElementById("sections-pivot-input");
   var sectionsMirrorOutput = document.getElementById("sections-mirror-output");
@@ -214,12 +226,11 @@
   }
 
   function renderSectionMaps() {
-    for (var i = 0; i < 5; i++) {
-      var mapEl = document.querySelector('[data-section-map="' + i + '"]');
+    for (var i = 0; i < SECTION_COUNT; i++) {
       var words = tokenize(state.sections.forwards[i]);
-      renderWordMap(mapEl, words, "sec" + i);
+      renderWordMap(sectionMapEls[i], words, "sec" + i);
 
-      var status = document.querySelector('[data-section-status="' + i + '"]');
+      var status = sectionStatusEls[i];
       status.classList.toggle("filled", words.length > 0);
       status.title = words.length > 0 ? words.length + " word" + (words.length === 1 ? "" : "s") : "empty";
     }
@@ -227,7 +238,7 @@
 
   function renderSectionsMirror() {
     sectionsMirrorOutput.innerHTML = "";
-    for (var i = 4; i >= 0; i--) {
+    for (var i = SECTION_COUNT - 1; i >= 0; i--) {
       var words = tokenize(state.sections.forwards[i]);
       if (!words.length) continue;
       var label = document.createElement("span");
@@ -272,21 +283,21 @@
       var fwdParts = [];
       var mirrorParts = [];
       n = 0;
-      for (var i = 0; i < 5; i++) {
+      for (var i = 0; i < SECTION_COUNT; i++) {
         var w = tokenize(state.sections.forwards[i]);
         n += w.length;
         if (w.length) fwdParts.push(state.sections.forwards[i].trim());
       }
-      for (var i2 = 4; i2 >= 0; i2--) {
-        var w2 = tokenize(state.sections.forwards[i2]);
-        if (!w2.length) continue;
-        mirrorParts.push(mirrorWordsFor(w2, state.sections.overrides[i2]).join(" "));
+      for (var i = SECTION_COUNT - 1; i >= 0; i--) {
+        var w = tokenize(state.sections.forwards[i]);
+        if (!w.length) continue;
+        mirrorParts.push(mirrorWordsFor(w, state.sections.overrides[i]).join(" "));
       }
       pivot = state.sections.pivot.trim();
       previewText = composeParts(fwdParts.join(" "), pivot, mirrorParts.join(" "));
       mirroredN = n;
       total = n + mirroredN + (pivot ? 1 : 0);
-      filledSections = [0, 1, 2, 3, 4].filter(function (i) {
+      filledSections = SECTION_INDICES.filter(function (i) {
         return tokenize(state.sections.forwards[i]).length > 0;
       }).length;
     }
@@ -306,7 +317,7 @@
     renderSimpleMap();
     renderSimpleMirror();
 
-    for (var i = 0; i < 5; i++) sectionInputs[i].value = state.sections.forwards[i];
+    for (var i = 0; i < SECTION_COUNT; i++) sectionInputs[i].value = state.sections.forwards[i];
     sectionsPivotInput.value = state.sections.pivot;
     renderSectionMaps();
     renderSectionsMirror();
@@ -326,15 +337,7 @@
   }
 
   function resetMirrorWord(span) {
-    var k = Number(span.dataset.k);
-    var overrides = overridesFor(span.dataset.prefix);
-    if (overrides) delete overrides[k];
-    span.textContent = span.dataset.default;
-    span.classList.remove("edited");
-    span.classList.add("ghost");
-    span.title = "";
-    updatePreviewAndStats();
-    saveState();
+    applyMirrorWordUpdate(span, span.dataset.default);
     commitHistory();
   }
 
@@ -472,10 +475,11 @@
           state.mode = parsed.mode === "sections" ? "sections" : "simple";
           state.simple = Object.assign({ forward: "", pivot: "", overrides: {} }, parsed.simple || {});
           var sec = parsed.sections || {};
+          var fallback = emptySectionsState();
           state.sections = {
-            forwards: Array.isArray(sec.forwards) && sec.forwards.length === 5 ? sec.forwards : ["", "", "", "", ""],
+            forwards: Array.isArray(sec.forwards) && sec.forwards.length === SECTION_COUNT ? sec.forwards : fallback.forwards,
             pivot: sec.pivot || "",
-            overrides: Array.isArray(sec.overrides) && sec.overrides.length === 5 ? sec.overrides : [{}, {}, {}, {}, {}]
+            overrides: Array.isArray(sec.overrides) && sec.overrides.length === SECTION_COUNT ? sec.overrides : fallback.overrides
           };
         }
         return;
@@ -494,7 +498,7 @@
 
   function hasContent() {
     if (state.simple.forward.trim() || state.simple.pivot.trim()) return true;
-    for (var i = 0; i < 5; i++) if (state.sections.forwards[i].trim()) return true;
+    for (var i = 0; i < SECTION_COUNT; i++) if (state.sections.forwards[i].trim()) return true;
     if (state.sections.pivot.trim()) return true;
     return false;
   }
@@ -754,8 +758,9 @@
   clearBtn.addEventListener("click", function () {
     if (!hasContent()) return;
     if (!confirm("Clear the current draft?")) return;
-    state.simple = { forward: "", pivot: "", overrides: {} };
-    state.sections = { forwards: ["", "", "", "", ""], pivot: "", overrides: [{}, {}, {}, {}, {}] };
+    var fresh = defaultState();
+    state.simple = fresh.simple;
+    state.sections = fresh.sections;
     renderAll();
     saveState();
     commitHistory();
